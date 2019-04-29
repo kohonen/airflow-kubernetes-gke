@@ -14,7 +14,7 @@ Inspired by https://github.com/BrechtDeVlieger/airflow-kube-helm. Some values in
         - edit `GIT_SYNC_REPO` first
     2. if you are using a private git repository - `kubectl -n airflow -f nfs/nfs_server_private_repository.yaml`
         - edit `GIT_SYNC_REPO` first
-        - edit data.ssh and data.known_hosts, use the SSH private key and at least the git repo lines from your known_hosts file.
+        - edit *data.ssh* and *data.known_hosts*, use the SSH private key and at least the git repo lines from your known_hosts file.
           - *data.ssh*: `cat .ssh/ida_rsa | base64`
           - *data.known_hosts*: `cat .ssh/known_hosts | base64`         
 3. create NFS persistent volume claims
