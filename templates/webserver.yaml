@@ -1,0 +1,121 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "airflow.fullname" . }}-web
+  labels:
+    app: {{ template "airflow.name" . }}-web
+    chart: {{ template "airflow.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  strategy:
+    # Smooth rolling update of the Web UI
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: {{ template "airflow.name" . }}-web
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") . | sha256sum }}
+        configmap.fabric8.io/update-on-change: "{{ template "airflow.fullname" . }}-env"
+      labels:
+        app: {{ template "airflow.name" . }}-web
+        release: {{ .Release.Name }}
+    spec:
+      securityContext:
+        fsGroup: 1000
+      restartPolicy: Always
+      initContainers:
+      - name: "init-airflow"
+        image: {{ .Values.airflow.image.repository }}:{{ .Values.airflow.image.tag }}
+        imagePullPolicy: {{ .Values.airflow.image.pull_policy }}
+        volumeMounts:
+          - name: airflow-config
+            mountPath: /usr/local/airflow/airflow.cfg
+            subPath: airflow.cfg
+          - name: init-airflow
+            mountPath: /usr/local/init-airflow.sh
+            subPath: init-airflow.sh
+        envFrom:
+          - secretRef:
+              name: {{ template "airflow.fullname" . }}-env
+        command:
+          - "bash"
+        args:
+          - "-cx"
+          - "bash /usr/local/init-airflow.sh"
+      containers:
+      - name: webserver
+        image: {{ .Values.airflow.image.repository }}:{{ .Values.airflow.image.tag }}
+        imagePullPolicy: {{ .Values.airflow.image.pull_policy }}
+        ports:
+        - name: webserver
+          containerPort: 8080
+        args: ["webserver"]
+        envFrom:
+          - secretRef:
+              name: {{ template "airflow.fullname" . }}-env
+        env:
+        #- name: AIRFLOW__WEBSERVER__BASE_URL
+        #  value: {{ .Values.airflow.url }}
+        - name: AIRFLOW_KUBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        # - name: FORWARDED_ALLOW_IPS
+        #   value: "*"
+        volumeMounts:
+        - name: airflow-config
+          mountPath: /usr/local/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: webserver-config
+          mountPath: /usr/local/airflow/webserver_config.py
+          subPath: webserver_config.py
+        - name: airflow-logs
+          mountPath: /usr/local/airflow/logs
+        - name: airflow-dags
+          mountPath: /usr/local/airflow/dags
+        readinessProbe:
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 5
+          httpGet:
+            path: /health
+            port: 8080
+        livenessProbe:
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 5
+          httpGet:
+            path: /health
+            port: 8080
+      volumes:
+      - name: airflow-logs
+        persistentVolumeClaim:
+          claimName: {{ if .Values.airflow.logs.persistence.existingClaim }}{{ .Values.airflow.logs.persistence.existingClaim }}{{- else }}{{ template "airflow.fullname" . }}-logs{{- end }}
+      - name: airflow-config
+        configMap:
+          name: {{ template "airflow.fullname" . }}-config
+      - name: webserver-config
+        secret:
+          secretName: webserver-config
+      - name: init-airflow
+        configMap:
+          name: {{ template "airflow.fullname" . }}-init
+      - name: airflow-dags
+        {{- if .Values.airflow.dags.persistence.enabled }}
+        persistentVolumeClaim:
+          {{- if .Values.airflow.dags.persistence.existingClaim }}
+          claimName: "{{ .Values.airflow.dags.persistence.existingClaim }}"
+          {{- else }}
+          claimName: {{ template "airflow.fullname" . }}-dags
+          {{- end }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
