@@ -19,9 +19,9 @@ Inspired by https://github.com/BrechtDeVlieger/airflow-kube-helm
           - *data.known_hosts*: `cat .ssh/known_hosts | base64`         
 3. create NFS persistent volume claims
      - `kubectl -n airflow -f nfs/volumes_nfs.yaml`
-4. optional - edit *airflow.fernet_key* in *values.yaml*
+4. optional - edit *airflow.fernet_key* in **values.yaml**
      - `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
-5. edit *dags.git.subpath* in *values.yaml* to reflect your dags directory in git    
+5. edit *dags.git.subpath* in **values.yaml** to reflect your dags directory in git    
 6. install airflow
      - `helm upgrade --install airflow . --namespace airflow --values values.yaml`
      
