@@ -1,4 +1,4 @@
-# airflow-kubernetes-gke-git-sync
+# airflow kubernetes gke git-sync
 Airflow 1.10.3 helm chart for GKE (Google Kubernetes Engine) with KubernetesExecutor, with dags folder synchronized from git repository.
 
 Inspired by https://github.com/BrechtDeVlieger/airflow-kube-helm. Some values in the config files might be obsolete or not being used at all, please ignore them.
